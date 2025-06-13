@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Text Fade-In Demo</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    h1 {
+      margin-top: 0;
+      color: #333;
+    }
+    
+    .demo-area {
+      margin: 30px 0;
+      padding: 20px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      min-height: 300px;
+      position: relative;
+    }
+    
+    .demo-text {
+      font-family: 'Comic Sans MS', cursive, sans-serif; /* 模拟手写字体 */
+      font-size: 24px;
+      color: green; /* 使用tldraw支持的颜色 */
+      opacity: 0;
+      transition: opacity 1.2s ease;
+      margin-bottom: 20px;
+    }
+    
+    .char {
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      display: inline-block;
+    }
+    
+    .controls {
+      margin-bottom: 20px;
+    }
+    
+    button {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-right: 10px;
+      font-size: 14px;
+    }
+    
+    button:hover {
+      background-color: #45a049;
+    }
+    
+    .description {
+      margin-top: 30px;
+      color: #666;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    
+    .code {
+      background-color: #f8f8f8;
+      padding: 15px;
+      border-radius: 4px;
+      font-family: monospace;
+      overflow-x: auto;
+      margin: 10px 0;
+    }
+
+    .language-toggle {
+      display: flex;
+      margin-bottom: 10px;
+    }
+
+    .language-toggle button {
+      background-color: #ddd;
+      color: #333;
+    }
+
+    .language-toggle button.active {
+      background-color: #4CAF50;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Text Fade-In Demo</h1>
+    <p>这个演示展示了两种文本动画效果：整体淡入和从左到右逐字淡入。</p>
+    
+    <div class="language-toggle">
+      <button id="toggleChinese" class="active">中文</button>
+      <button id="toggleEnglish">English</button>
+    </div>
+    
+    <div class="controls">
+      <button id="singleFade">整体淡入</button>
+      <button id="leftToRight">从左到右淡入</button>
+      <button id="sequenceFade">顺序淡入</button>
+      <button id="reset">重置</button>
+    </div>
+    
+    <div class="demo-area">
+      <!-- Chinese Text -->
+      <div id="chinese-demo" class="language-demo">
+        <div id="text1-cn" class="demo-text">这是一段示例文本，用于展示不同的淡入效果。</div>
+        <div id="text2-cn" class="demo-text">第二段文本会在延迟后显示。</div>
+        <div id="text3-cn" class="demo-text">第三段文本会在最后显示。</div>
+      </div>
+      
+      <!-- English Text (Hidden by default) -->
+      <div id="english-demo" class="language-demo" style="display:none;">
+        <div id="text1-en" class="demo-text">This is a sample text to demonstrate different fade-in effects.</div>
+        <div id="text2-en" class="demo-text">The second text appears after a delay.</div>
+        <div id="text3-en" class="demo-text">The third text shows up last in the sequence.</div>
+      </div>
+    </div>
+    
+    <div class="description">
+      <h3>实现细节</h3>
+      <p>演示了两种不同的文本动画效果：</p>
+      
+      <h4>1. 整体淡入</h4>
+      <div class="code">
+        // CSS
+        .demo-text {
+          opacity: 0;
+          transition: opacity 1.2s ease;
+        }
+        
+        // JavaScript
+        const el = document.querySelector('#text1');
+        el.style.opacity = '0';
+        el.style.transition = 'opacity 1.2s ease';
+        
+        // 启动动画
+        requestAnimationFrame(() => {
+          el.style.opacity = '1';
+        });
+      </div>
+      
+      <h4>2. 从左到右逐字淡入</h4>
+      <div class="code">
+        // 分割文本为单个字符
+        const chars = text.split('');
+        
+        // 创建每个字符的span元素
+        chars.forEach((char, index) => {
+          const span = document.createElement('span');
+          span.textContent = char;
+          span.style.opacity = '0';
+          span.style.transition = 'opacity 0.3s ease';
+          
+          // 设置延迟淡入
+          setTimeout(() => {
+            span.style.opacity = '1';
+          }, index * 50);
+        });
+      </div>
+      
+      <p>注意：在tldraw中使用时，颜色必须使用tldraw支持的命名颜色，如"green"、"blue"、"red"等，不能使用十六进制颜色值。</p>
+      
+      <p>这种方法的优势：</p>
+      <ul>
+        <li><strong>简单:</strong> 代码简洁易懂</li>
+        <li><strong>高性能:</strong> 使用CSS过渡动画，利用GPU加速</li>
+        <li><strong>灵活:</strong> 可以轻松调整动画参数</li>
+        <li><strong>多语言支持:</strong> 同样适用于中文和英文文本</li>
+      </ul>
+    </div>
+  </div>
+  
+  <script>
+    // 获取语言切换按钮
+    const toggleChineseBtn = document.getElementById('toggleChinese');
+    const toggleEnglishBtn = document.getElementById('toggleEnglish');
+    const chineseDemo = document.getElementById('chinese-demo');
+    const englishDemo = document.getElementById('english-demo');
+    
+    // 当前活跃的文本元素
+    let text1, text2, text3;
+    
+    // 设置默认为中文
+    setActiveLanguage('chinese');
+    
+    // 语言切换事件处理
+    toggleChineseBtn.addEventListener('click', () => setActiveLanguage('chinese'));
+    toggleEnglishBtn.addEventListener('click', () => setActiveLanguage('english'));
+    
+    function setActiveLanguage(language) {
+      if (language === 'chinese') {
+        chineseDemo.style.display = 'block';
+        englishDemo.style.display = 'none';
+        toggleChineseBtn.classList.add('active');
+        toggleEnglishBtn.classList.remove('active');
+        text1 = document.getElementById('text1-cn');
+        text2 = document.getElementById('text2-cn');
+        text3 = document.getElementById('text3-cn');
+      } else {
+        chineseDemo.style.display = 'none';
+        englishDemo.style.display = 'block';
+        toggleChineseBtn.classList.remove('active');
+        toggleEnglishBtn.classList.add('active');
+        text1 = document.getElementById('text1-en');
+        text2 = document.getElementById('text2-en');
+        text3 = document.getElementById('text3-en');
+      }
+      
+      // 重置所有文本
+      resetAll();
+    }
+    
+    function resetAll() {
+      // 获取当前可见的demo中的所有文本元素
+      const textElements = document.querySelectorAll('.language-demo:not([style*="display: none"]) .demo-text');
+      
+      // 移除所有可能已添加的字符span
+      textElements.forEach(el => {
+        el.innerHTML = el.textContent;
+        el.style.opacity = '0';
+      });
+    }
+    
+    // 创建从左到右淡入效果
+    function createLeftToRightEffect(element, delay = 0) {
+      // 获取文本内容
+      const text = element.textContent || '';
+      // 清空元素
+      element.innerHTML = '';
+      // 显示元素本身
+      element.style.opacity = '1';
+      
+      // 分割文本为单个字符
+      const chars = text.split('');
+      const charDelay = 50; // 每个字符的延迟
+      
+      // 为每个字符创建span
+      chars.forEach((char, index) => {
+        const span = document.createElement('span');
+        span.textContent = char;
+        span.className = 'char';
+        element.appendChild(span);
+        
+        // 设置延迟淡入
+        setTimeout(() => {
+          span.style.opacity = '1';
+        }, delay + (index * charDelay));
+      });
+    }
+    
+    document.getElementById('singleFade').addEventListener('click', () => {
+      resetAll();
+      setTimeout(() => {
+        text1.style.opacity = '1';
+      }, 100);
+    });
+    
+    document.getElementById('leftToRight').addEventListener('click', () => {
+      resetAll();
+      createLeftToRightEffect(text1);
+    });
+    
+    document.getElementById('sequenceFade').addEventListener('click', () => {
+      resetAll();
+      
+      // 第一段文本：从左到右淡入
+      createLeftToRightEffect(text1);
+      
+      // 第二段文本：在第一段之后从左到右淡入
+      setTimeout(() => {
+        createLeftToRightEffect(text2);
+      }, 1000);
+      
+      // 第三段文本：在第二段之后从左到右淡入
+      setTimeout(() => {
+        createLeftToRightEffect(text3);
+      }, 2000);
+    });
+    
+    document.getElementById('reset').addEventListener('click', resetAll);
+  </script>
+</body>
+</html> 

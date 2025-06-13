@@ -1,0 +1,20 @@
+/**
+ * 文本动画优化 - 防止初始闪烁
+ * 这个文件包含防止tldraw文本shape在动画开始前闪烁的CSS规则
+ */
+
+/* 初始隐藏带有fadein-pending类的元素及其所有子元素 */
+.fadein-pending,
+.fadein-pending *,
+[data-shape-id].fadein-pending,
+[data-shape-id].fadein-pending * {
+  opacity: 0 !important;
+  visibility: visible !important; /* 确保元素存在但不可见 */
+}
+
+/* 针对tldraw特定的text shape selector */
+[data-shape-id].fadein-pending [data-text-el="true"],
+[data-shape-id].fadein-pending [contenteditable="true"] {
+  opacity: 0 !important;
+  visibility: hidden !important;
+} 
