@@ -15,7 +15,7 @@ import {
 } from '../lib/dataStorage'
 import { analyzeHandwritingErrors, validateErrorAnalysisResult, formatErrorReport } from '../lib/handwritingErrorAnalysis'
 import { markErrorsOnCanvas, clearErrorMarks, markErrorsWithAnimation } from '../lib/canvasErrorMarking'
-import { mapOcrBoxesToPage, DomImageData } from '../lib/ocrPixelToPageMapping'
+import { mapOcrBoxesToPage, DomImageData, pixelBoxToPageBox } from '../lib/ocrPixelToPageMapping'
 // 导入TTS钩子
 import { useTTS } from './useTTS'
 
@@ -713,6 +713,21 @@ export function useHandwritingOCR(options: UseHandwritingOCROptions = {}) {
           errorAnalysisResult = await analyzeHandwritingErrors(ocrResult, originalCanvas)
           
           if (errorAnalysisResult.success && errorAnalysisResult.result) {
+            // 在处理GPT响应后立即验证和修正坐标
+            if (errorAnalysisResult.result.hasErrors) {
+              // 验证并修正GPT坐标
+              const fixedErrors = validateAndFixGPTCoordinates(
+                errorAnalysisResult.result.results,
+                ocrResult.charBoxes
+              )
+              
+              // 更新错误分析结果
+              errorAnalysisResult.result.results = fixedErrors
+              
+              const fixedCount = fixedErrors.filter((e, i) => e !== errorAnalysisResult.result.results[i]).length
+              sendDebugToTerminal(`🔧 验证GPT坐标: 修正了${fixedCount}个坐标`)
+            }
+            
             // 验证错误分析结果
             const validation = validateErrorAnalysisResult(
               errorAnalysisResult.result.results,
@@ -750,7 +765,7 @@ export function useHandwritingOCR(options: UseHandwritingOCROptions = {}) {
                 
                 // 转换错误坐标到tldraw坐标系 - 使用新算法
                 const convertedErrors = (() => {
-                  // 获取图片DOM数据
+                  // 构建图片DOM数据结构
                   const imageData: DomImageData = {
                     rect: {
                       x: selectionBounds.x,
@@ -763,28 +778,31 @@ export function useHandwritingOCR(options: UseHandwritingOCROptions = {}) {
                   }
                   
                   sendDebugToTerminal('🔄 使用新算法映射GPT错误坐标...')
-                  sendDebugToTerminal(`📐 图片数据: rect(${imageData.rect.x}, ${imageData.rect.y}, ${imageData.rect.width}x${imageData.rect.height})`)
-                  sendDebugToTerminal(`🖼️ 原始尺寸: ${imageData.naturalWidth}x${imageData.naturalHeight}`)
+                  sendDebugToTerminal(`📐 选区边界: (${selectionBounds.x.toFixed(1)}, ${selectionBounds.y.toFixed(1)}, ${selectionBounds.w.toFixed(1)}×${selectionBounds.h.toFixed(1)})`)
+                  sendDebugToTerminal(`🖼️ OCR图像尺寸: ${width}×${height}`)
                   
-                  // 使用新算法批量转换所有错误的坐标
-                  const mappedErrors = mapOcrBoxesToPage(
-                    errorAnalysisResult.result.results.map(error => ({
-                      id: error.id,
-                      x: error.bbox.x,
-                      y: error.bbox.y,
-                      w: error.bbox.w,
-                      h: error.bbox.h,
-                      ...error // 保留其他属性
-                    })),
-                    imageData,
-                    editor
-                  )
-                  
-                  // 合并映射后的坐标和原始错误信息
+                  // 对每个错误应用新的坐标映射算法
                   return errorAnalysisResult.result.results.map((error, index) => {
-                    const mappedBox = mappedErrors[index]
+                    // 使用 pixelBoxToPageBox 进行单个框的转换
+                    const mappedBox = pixelBoxToPageBox(
+                      {
+                        id: error.id,
+                        x: error.bbox.x,
+                        y: error.bbox.y,
+                        w: error.bbox.w,
+                        h: error.bbox.h
+                      },
+                      imageData,
+                      editor
+                    )
                     
-                    sendDebugToTerminal(`  ✅ 错误 ${error.id}: (${error.bbox.x},${error.bbox.y}) → (${mappedBox.x.toFixed(1)},${mappedBox.y.toFixed(1)})`)
+                    sendDebugToTerminal(`  📍 错误 ${error.id}: 像素(${error.bbox.x},${error.bbox.y},${error.bbox.w}×${error.bbox.h}) → page(${mappedBox.x.toFixed(1)},${mappedBox.y.toFixed(1)},${mappedBox.w.toFixed(1)}×${mappedBox.h.toFixed(1)})`)
+                    
+                    // 验证映射结果
+                    if (isNaN(mappedBox.x) || isNaN(mappedBox.y)) {
+                      console.warn(`⚠️ 错误 ${error.id} 映射失败，使用原始坐标`)
+                      return error
+                    }
                     
                     return {
                       ...error,
@@ -1245,6 +1263,49 @@ export function useHandwritingOCR(options: UseHandwritingOCROptions = {}) {
       resume: tts.resume
     }
   }
+}
+
+/**
+ * 验证并修正GPT返回的坐标
+ * 确保GPT使用的是OCR提供的精确坐标
+ */
+function validateAndFixGPTCoordinates(
+  gptErrors: any[],
+  ocrCharBoxes: any[]
+): any[] {
+  const charMap = new Map(ocrCharBoxes.map((char: any) => [char.id, char]))
+  
+  return gptErrors.map(error => {
+    const ocrChar = charMap.get(error.id)
+    
+    if (!ocrChar) {
+      console.warn(`⚠️ GPT错误引用了不存在的字符ID: ${error.id}`)
+      return error
+    }
+    
+    // 检查GPT的坐标是否与OCR坐标匹配
+    const coordsMatch = (
+      error.bbox.x === ocrChar.bbox.x &&
+      error.bbox.y === ocrChar.bbox.y &&
+      error.bbox.w === ocrChar.bbox.w &&
+      error.bbox.h === ocrChar.bbox.h
+    )
+    
+    if (!coordsMatch) {
+      console.warn(`🔧 修正GPT坐标: ${error.id}`)
+      console.warn(`  GPT坐标: (${error.bbox.x},${error.bbox.y},${error.bbox.w}×${error.bbox.h})`)
+      console.warn(`  OCR坐标: (${ocrChar.bbox.x},${ocrChar.bbox.y},${ocrChar.bbox.w}×${ocrChar.bbox.h})`)
+      
+      // 使用OCR的精确坐标替换GPT的坐标
+      return {
+        ...error,
+        bbox: { ...ocrChar.bbox },
+        center: { ...ocrChar.center }
+      }
+    }
+    
+    return error
+  })
 }
 
 /**

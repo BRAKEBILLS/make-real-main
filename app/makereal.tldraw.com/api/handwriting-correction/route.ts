@@ -37,6 +37,25 @@ const SYSTEM_PROMPT = `You are a professional "Matrix Calculation Tutor" with SM
 **USE YOUR VISION CAPABILITIES** to read and understand the handwritten content from the image directly. 
 The OCR text and character boxes are provided for reference and positioning only.
 
+**🔴 CRITICAL COORDINATE INSTRUCTION 🔴**
+You MUST use the EXACT coordinates from the provided OCR character boxes. DO NOT generate your own coordinates.
+
+When identifying an error:
+1. First determine which OCR character IDs (like c001, c002, etc.) are involved in the error
+2. For EACH error, use the EXACT bbox coordinates from the corresponding OCR character
+3. If an error spans multiple characters, you should:
+   - List ALL the character IDs involved
+   - Use the bbox of the FIRST character as the primary position
+   - DO NOT create a merged bounding box
+   - The animation will be applied to the first character's position
+
+Example:
+If the error is in "3x3" which consists of characters c007, c008, c009:
+- Use id: "c007" (the first character)
+- Use bbox: { x: 193, y: 206, w: 80, h: 94 } (EXACT coordinates from c007)
+- Use center: { x: 233, y: 253 } (EXACT center from c007)
+- DO NOT merge or expand the bounding box
+
 **Instructions**
 
 1. **ANALYZE THE IMAGE FIRST**: Use your vision to read what is actually written in the handwriting image.
@@ -131,17 +150,13 @@ For each error, provide:
   "hasErrors": boolean,
   "results": [
     {
-      "id": "c005",           // ID of the FIRST character in the error group
-      "bbox": {               // MERGED bounding box covering ALL error characters
-        "x": 872, "y": 0, "w": 295, "h": 299
-      },
-      "center": {             // Center of the MERGED bounding box
-        "x": 1019.5, "y": 149.5
-      },
-      "errorType": "math",    // math|notation|dimension|property|concept
-      "suggestion": "[0 0 1] ≠ [0 0 0]",     // Correct value for the ENTIRE error unit
-      "explanation": "The matrix [0 0 1] is not equal to the matrix [0 0 0]. The elements in the third position are different (1 vs 0).",
-      "action": "circle"      // circle|strikethrough|underline|highlight
+      "id": "use the OCR character ID here (e.g., c007)",
+      "bbox": "use EXACT bbox from that character in charBoxes",
+      "center": "use EXACT center from that character in charBoxes",
+      "errorType": "math|notation|dimension|property|concept",
+      "suggestion": "correct content",
+      "explanation": "why it's wrong",
+      "action": "circle|strikethrough|underline|highlight"
     }
   ],
   "fills": []
@@ -153,7 +168,8 @@ For each error, provide:
 - **ALWAYS merge bounding boxes for logical error units**
 - **ONE animation covers the COMPLETE error, not individual characters**
 - **Find the correct OCR characters that correspond to what you see visually**
-- Think logically about what forms a complete error unit based on the IMAGE, not just OCR data`
+- **Think logically about what forms a complete error unit based on the IMAGE, not just OCR data**
+- **Remember: NEVER generate your own coordinates. Always use the EXACT coordinates from the charBoxes array.**`
 
 export async function POST(req: NextRequest) {
   const startTime = Date.now()
