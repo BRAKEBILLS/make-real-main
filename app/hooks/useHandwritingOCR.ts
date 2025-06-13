@@ -15,7 +15,7 @@ import {
 } from '../lib/dataStorage'
 import { analyzeHandwritingErrors, validateErrorAnalysisResult, formatErrorReport } from '../lib/handwritingErrorAnalysis'
 import { markErrorsOnCanvas, clearErrorMarks, markErrorsWithAnimation } from '../lib/canvasErrorMarking'
-import { mapLocalOcrCoordinatesWithAutoCorrection } from '../lib/coordinateMapping'
+import { mapOcrBoxesToPage, DomImageData } from '../lib/ocrPixelToPageMapping'
 // 导入TTS钩子
 import { useTTS } from './useTTS'
 
@@ -748,29 +748,59 @@ export function useHandwritingOCR(options: UseHandwritingOCROptions = {}) {
                 console.log(`🎯 自动标记 ${errorAnalysisResult.result.results.length} 个错误...`)
                 sendDebugToTerminal(`🎯 开始自动标记 ${errorAnalysisResult.result.results.length} 个错误...`)
                 
-                // 转换错误坐标到tldraw坐标系
-                const convertedErrors = errorAnalysisResult.result.results.map(error => {
-                  const mappedBbox = mapLocalOcrCoordinatesWithAutoCorrection(
-                    error.bbox,
-                    selectionBounds,
-                    { width, height },
-                    ocrResult.metadata.detectedInternalScaleFactor
+                // 转换错误坐标到tldraw坐标系 - 使用新算法
+                const convertedErrors = (() => {
+                  // 获取图片DOM数据
+                  const imageData: DomImageData = {
+                    rect: {
+                      x: selectionBounds.x,
+                      y: selectionBounds.y,
+                      width: selectionBounds.w,
+                      height: selectionBounds.h
+                    },
+                    naturalWidth: width,  // OCR处理的原始图像宽度
+                    naturalHeight: height // OCR处理的原始图像高度
+                  }
+                  
+                  sendDebugToTerminal('🔄 使用新算法映射GPT错误坐标...')
+                  sendDebugToTerminal(`📐 图片数据: rect(${imageData.rect.x}, ${imageData.rect.y}, ${imageData.rect.width}x${imageData.rect.height})`)
+                  sendDebugToTerminal(`🖼️ 原始尺寸: ${imageData.naturalWidth}x${imageData.naturalHeight}`)
+                  
+                  // 使用新算法批量转换所有错误的坐标
+                  const mappedErrors = mapOcrBoxesToPage(
+                    errorAnalysisResult.result.results.map(error => ({
+                      id: error.id,
+                      x: error.bbox.x,
+                      y: error.bbox.y,
+                      w: error.bbox.w,
+                      h: error.bbox.h,
+                      ...error // 保留其他属性
+                    })),
+                    imageData,
+                    editor
                   )
                   
-                  return {
-                    ...error,
-                    bbox: {
-                      x: mappedBbox.x,
-                      y: mappedBbox.y,
-                      w: mappedBbox.w || error.bbox.w,
-                      h: mappedBbox.h || error.bbox.h
-                    },
-                    center: {
-                      x: mappedBbox.x + (mappedBbox.w || error.bbox.w) / 2,
-                      y: mappedBbox.y + (mappedBbox.h || error.bbox.h) / 2
+                  // 合并映射后的坐标和原始错误信息
+                  return errorAnalysisResult.result.results.map((error, index) => {
+                    const mappedBox = mappedErrors[index]
+                    
+                    sendDebugToTerminal(`  ✅ 错误 ${error.id}: (${error.bbox.x},${error.bbox.y}) → (${mappedBox.x.toFixed(1)},${mappedBox.y.toFixed(1)})`)
+                    
+                    return {
+                      ...error,
+                      bbox: {
+                        x: mappedBox.x,
+                        y: mappedBox.y,
+                        w: mappedBox.w,
+                        h: mappedBox.h
+                      },
+                      center: {
+                        x: mappedBox.x + mappedBox.w / 2,
+                        y: mappedBox.y + mappedBox.h / 2
+                      }
                     }
-                  }
-                })
+                  })
+                })()
                 
                 // 🎬 使用智能动画标记代替静态标记
                 sendDebugToTerminal('🎬 使用智能动画标记错误...')
@@ -1214,6 +1244,61 @@ export function useHandwritingOCR(options: UseHandwritingOCROptions = {}) {
       pause: tts.pause,
       resume: tts.resume
     }
+  }
+}
+
+/**
+ * 从画布中获取图片形状的精确位置
+ * 这个函数可以用于获取更准确的图片位置信息
+ */
+function getImageShapeData(editor: any, selectionBounds: any, width: number, height: number): DomImageData | null {
+  try {
+    // 尝试找到图片DOM元素
+    const img: HTMLImageElement | null = document.querySelector('#scan') || 
+                                        document.querySelector('img[data-ocr-image="true"]')
+    
+    if (!img || !img.complete || img.naturalWidth === 0) {
+      return null
+    }
+    
+    // 优先从选中的形状中找到图片形状
+    const selectedShapes = editor.getSelectedShapes()
+    const imageShape = selectedShapes.find((shape: any) => 
+      shape.type === 'image' || 
+      (shape as any).props?.assetId ||
+      (shape as any).props?.url
+    )
+    
+    if (imageShape) {
+      const shapePageBounds = editor.getShapePageBounds(imageShape)
+      if (shapePageBounds) {
+        return {
+          rect: {
+            x: shapePageBounds.x,
+            y: shapePageBounds.y,
+            width: shapePageBounds.w,
+            height: shapePageBounds.h,
+          },
+          naturalWidth: img.naturalWidth,
+          naturalHeight: img.naturalHeight,
+        }
+      }
+    }
+    
+    // 回退：使用选区坐标
+    return {
+      rect: {
+        x: selectionBounds.x,
+        y: selectionBounds.y,
+        width: selectionBounds.w,
+        height: selectionBounds.h
+      },
+      naturalWidth: width,
+      naturalHeight: height
+    }
+  } catch (error) {
+    console.error('获取图片数据失败:', error)
+    return null
   }
 }
 

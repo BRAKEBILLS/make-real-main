@@ -169,8 +169,16 @@ export async function POST(req: NextRequest) {
       }, { status: 400 })
     }
 
-    // 使用环境变量中的API密钥，如果没有则使用提供的密钥
-    const apiKey = process.env.OPENAI_API_KEY || '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'
+    // 使用环境变量中的API密钥
+    const apiKey = process.env.OPENAI_API_KEY
+    
+    if (!apiKey) {
+      return NextResponse.json({
+        success: false,
+        error: 'OpenAI API key not configured. Please set OPENAI_API_KEY environment variable.',
+        processingTime: Date.now() - startTime
+      }, { status: 500 })
+    }
     const openai = createOpenAI({ apiKey })
 
     console.log('🔍 开始分析手写错误...')
