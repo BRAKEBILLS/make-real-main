@@ -742,7 +742,7 @@ export function MyScriptVisualizerButton() {
         label={isVisualized ? '清除可视化' : '开始分析'} 
       />
       <TldrawUiButtonLabel>
-        {isVisualized ? '清除分析' : 'AmIWrite'}
+        {isVisualized ? 'Clear Analysis' : 'AmIWrite'}
       </TldrawUiButtonLabel>
     </TldrawUiButton>
   )
