@@ -18,7 +18,11 @@ export function HandwritingButton() {
     errorMarkShapeIds,
     error,
     resetOCRState,
-    clearErrorMarksFromCanvas
+    clearErrorMarksFromCanvas,
+    // 新增：两阶段OCR状态
+    isInitialized,
+    initializationData,
+    initializeOCR
   } = useHandwritingOCR({
     autoSave: true,
     autoSaveToDataDirectory: true,
@@ -26,7 +30,7 @@ export function HandwritingButton() {
     autoMarkErrors: true,
     enableSmartSuggestions: true,
     autoShowSuggestions: true,
-    enableTTS: false
+    enableTTS: true  // 启用TTS功能
   })
 
   const [showProgressModal, setShowProgressModal] = useState(false)
@@ -151,7 +155,7 @@ export function HandwritingButton() {
           </svg>
         </TldrawUiButton>
 
-        {/* 识别按钮 */}
+        {/* 识别按钮 - 支持两阶段机制 */}
         <button
           onClick={handleProcessSelected}
           disabled={isProcessing}
@@ -163,8 +167,10 @@ export function HandwritingButton() {
             opacity: isProcessing ? 0.6 : 1
           }}
         >
-          <div className={`${isProcessing ? 'bg-gray-500' : 'bg-green-500 hover:bg-green-700'} text-white font-bold py-2 px-4 rounded`}>
-            {isProcessing ? `Analyzing... ${progress}%` : 'Check Matrix Calculation'}
+          <div className={`${isProcessing ? 'bg-gray-500' : 
+            isInitialized ? 'bg-blue-500 hover:bg-blue-700' : 'bg-green-500 hover:bg-green-700'} text-white font-bold py-2 px-4 rounded`}>
+            {isProcessing ? `${currentStep}... ${progress}%` : 
+             isInitialized ? 'Start OCR Recognition' : 'Initialize OCR Environment'}
           </div>
         </button>
 
@@ -184,6 +190,25 @@ export function HandwritingButton() {
             {isProcessing ? 'Analyzing...' : 'Check All Calculations'}
           </div>
         </button>
+
+        {/* 初始化状态指示器 */}
+        {isInitialized && (
+          <button
+            onClick={() => resetOCRState()}
+            disabled={isProcessing}
+            className="pt-2 pb-2 pr-2"
+            style={{ 
+              cursor: isProcessing ? 'not-allowed' : 'pointer', 
+              zIndex: 100000, 
+              pointerEvents: 'all',
+              opacity: isProcessing ? 0.6 : 1
+            }}
+          >
+            <div className="bg-yellow-500 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded">
+              ✅ Ready - Reset
+            </div>
+          </button>
+        )}
 
         {/* 清除错误标记按钮 */}
         {errorMarkShapeIds.length > 0 && (

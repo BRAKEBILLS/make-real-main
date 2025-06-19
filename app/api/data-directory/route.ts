@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic'
 // 确保data目录结构存在
 async function ensureDataDirectories() {
   const dataDir = path.join(process.cwd(), 'data')
-  const subdirs = ['ocr-results', 'visualizations']
+  const subdirs = ['ocr-results', 'visualizations', 'canvas-screenshots', 'gpt-analysis', 'coordinates']
   
   try {
     // 创建主data目录
@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({
         success: true,
         message: 'Data directories created successfully',
-        directories: ['data/ocr-results', 'data/visualizations']
+        directories: ['data/ocr-results', 'data/visualizations', 'data/canvas-screenshots', 'data/gpt-analysis', 'data/coordinates']
       })
     } else {
       return NextResponse.json({
@@ -57,9 +57,21 @@ export async function POST(req: NextRequest) {
     
     switch (action) {
       case 'save-file':
-        // 根据文件类型决定保存到哪个子目录
-        let subdir = 'ocr-results'
-        if (filename.includes('visualization_')) subdir = 'visualizations'
+        // 🎯 根据文件类型决定保存到哪个子目录
+        let subdir = 'ocr-results'  // 默认目录
+        
+        // 按优先级判断目录
+        if (filename.startsWith('canvas_screenshot_')) {
+          subdir = 'canvas-screenshots'
+        } else if (filename.startsWith('coordinates_')) {
+          subdir = 'coordinates'
+        } else if (filename.startsWith('canvas_analysis_') || filename.startsWith('gpt_analysis_')) {
+          subdir = 'gpt-analysis'
+        } else if (filename.startsWith('visualization_')) {
+          subdir = 'visualizations'
+        }
+        
+        console.log(`📁 文件将保存到: /data/${subdir}/${filename}`)
         
         // 确保目录存在
         const targetDir = path.join(process.cwd(), 'data', subdir)
@@ -72,10 +84,22 @@ export async function POST(req: NextRequest) {
           console.log(`✅ JSON文件已保存: ${filePath}`)
         } else if (type === 'image') {
           // 处理base64图像数据
-          const base64Data = content.replace(/^data:image\/\w+;base64,/, '')
+          let base64Data = content
+          
+          // 移除data URL前缀（如果存在）
+          if (base64Data.startsWith('data:image/')) {
+            base64Data = base64Data.replace(/^data:image\/\w+;base64,/, '')
+          }
+          
+          try {
           const buffer = Buffer.from(base64Data, 'base64')
           await fs.writeFile(filePath, buffer)
           console.log(`✅ 图像文件已保存: ${filePath}`)
+            console.log(`📊 图像大小: ${Math.round(buffer.length / 1024)}KB`)
+          } catch (error) {
+            console.error('❌ 图像保存失败:', error)
+            throw new Error(`图像数据格式错误: ${error}`)
+          }
         }
         
         return NextResponse.json({

@@ -54,6 +54,14 @@ interface OCRState {
   suggestionsVisible: boolean                      // 建议是否可见
   hintShapeMapping: Map<string, string>            // hint按钮shape ID到错误ID的映射
   
+  // 新增：两阶段OCR状态
+  isInitialized: boolean                           // 是否已初始化（图片元素已加载）
+  initializationData: {                            // 初始化数据
+    selectionBounds: { x: number; y: number; w: number; h: number } | null
+    shapeIds: string[]
+    imageCanvas: HTMLCanvasElement | null
+  } | null
+  
   error: string | null
 }
 
@@ -82,6 +90,10 @@ export function useHandwritingOCR(options: UseHandwritingOCROptions = {}) {
     spatialGrid: null,
     suggestionsVisible: false,
     hintShapeMapping: new Map(),
+    
+    // 新增：两阶段OCR状态初始化
+    isInitialized: false,
+    initializationData: null,
     
     error: null
   })
@@ -147,11 +159,9 @@ export function useHandwritingOCR(options: UseHandwritingOCROptions = {}) {
   }, [speakContent, options.enableTTS])
 
   /**
-   * 新增：生成智能建议布局
+   * 发送调试信息到终端的通用函数
    */
-  const generateSmartSuggestionLayout = useCallback((errors: any[], selectionBounds: any) => {
-    // 发送调试信息到服务器终端
-    const sendDebugToTerminal = async (message: string) => {
+  const sendDebugToTerminal = useCallback(async (message: string) => {
       try {
         await fetch('/makereal.tldraw.com/api/debug-log', {
           method: 'POST',
@@ -161,7 +171,133 @@ export function useHandwritingOCR(options: UseHandwritingOCROptions = {}) {
       } catch (err) {
         // 忽略网络错误，不影响主要功能
       }
+  }, [])
+
+  /**
+   * 获取图片数据 - 复用 OcrBoundingBoxVisualizer 的逻辑
+   */
+  const getImageData = useCallback((): DomImageData | null => {
+    if (!editor) return null
+
+    // 查找图片DOM元素
+    const img: HTMLImageElement | null = document.querySelector('#scan') || 
+                                        document.querySelector('img[data-ocr-image="true"]')
+    if (!img || !img.complete || img.naturalWidth === 0) {
+      sendDebugToTerminal('❌ 未找到有效的图片元素')
+      return null
     }
+
+    // 优先从选中的形状中找到图片形状
+    const selectedShapes = editor.getSelectedShapes()
+    const imageShape = selectedShapes.find(shape => 
+      shape.type === 'image' || 
+      shape.type === 'asset' || 
+      (shape as any).props?.assetId ||
+      (shape as any).props?.url
+    )
+    
+    if (imageShape) {
+      const shapePageBounds = editor.getShapePageBounds(imageShape)
+      if (shapePageBounds) {
+        sendDebugToTerminal(`✅ 使用图片形状位置: (${shapePageBounds.x.toFixed(1)}, ${shapePageBounds.y.toFixed(1)}, ${shapePageBounds.w.toFixed(1)}×${shapePageBounds.h.toFixed(1)})`)
+        return {
+          rect: {
+            x: shapePageBounds.x,
+            y: shapePageBounds.y,
+            width: shapePageBounds.w,
+            height: shapePageBounds.h,
+          },
+          naturalWidth: img.naturalWidth,
+          naturalHeight: img.naturalHeight,
+        }
+      }
+    }
+    
+    // 回退：使用选区坐标
+    const selectionBounds = editor.getSelectionPageBounds()
+    if (selectionBounds) {
+      sendDebugToTerminal(`⚠️ 使用选区坐标作为回退: (${selectionBounds.x.toFixed(1)}, ${selectionBounds.y.toFixed(1)}, ${selectionBounds.w.toFixed(1)}×${selectionBounds.h.toFixed(1)})`)
+      return {
+        rect: {
+          x: selectionBounds.x,
+          y: selectionBounds.y,
+          width: selectionBounds.w,
+          height: selectionBounds.h,
+        },
+        naturalWidth: img.naturalWidth,
+        naturalHeight: img.naturalHeight,
+      }
+    }
+
+    sendDebugToTerminal('❌ 无法获取图片数据')
+    return null
+  }, [editor, sendDebugToTerminal])
+
+  /**
+   * 确保OCR图片元素有正确的标记
+   */
+  const ensureOcrImageElement = useCallback(() => {
+    // 确保OCR图片有正确的标记
+    const images = document.querySelectorAll('img')
+    images.forEach(img => {
+      // 如果是tldraw中的图片且包含OCR数据，添加标记
+      if (img.src && img.src.includes('data:image') && !img.hasAttribute('data-ocr-image')) {
+        // 检查是否是OCR处理过的图片
+        const selectedShapes = editor.getSelectedShapes()
+        const hasOcrData = selectedShapes.some(shape => 
+          shape.meta?.hasOcrResult || 
+          (typeof window !== 'undefined' && (window as any).ocrResults?.length > 0)
+        )
+        
+        if (hasOcrData) {
+          img.setAttribute('data-ocr-image', 'true')
+          img.id = 'scan'
+          sendDebugToTerminal('✅ 已标记OCR图片元素')
+        }
+      }
+    })
+  }, [editor, sendDebugToTerminal])
+
+  /**
+   * 调试比较函数 - 对比OCR可视化器的结果
+   */
+  const debugCompareWithOcrVisualizer = useCallback((convertedErrors: any[]) => {
+    if (typeof window !== 'undefined' && (window as any).ocrResults) {
+      const ocrResults = (window as any).ocrResults
+      const imageData = getImageData()
+      
+      if (imageData && ocrResults.length > 0) {
+        // 找到c007的OCR结果
+        const c007 = ocrResults.find((r: any) => r.id === 'c007')
+        if (c007) {
+          const mappedC007 = pixelBoxToPageBox(c007, imageData, editor)
+          
+          console.group('🔍 坐标映射对比 (c007)')
+          console.log('OCR原始坐标:', c007)
+          console.log('图片数据:', imageData)
+          console.log('映射后坐标:', mappedC007)
+          
+          // 找到GPT错误中的c007
+          const gptC007 = convertedErrors.find(e => e.id === 'c007')
+          if (gptC007) {
+            console.log('GPT错误映射坐标:', gptC007.bbox)
+            console.log('坐标差异:', {
+              dx: mappedC007.x - gptC007.bbox.x,
+              dy: mappedC007.y - gptC007.bbox.y,
+              dw: mappedC007.w - gptC007.bbox.w,
+              dh: mappedC007.h - gptC007.bbox.h
+            })
+          }
+          console.groupEnd()
+        }
+      }
+    }
+  }, [getImageData, editor])
+
+  /**
+   * 新增：生成智能建议布局
+   */
+  const generateSmartSuggestionLayout = useCallback((errors: any[], selectionBounds: any) => {
 
     try {
       console.log('🧠 开始智能建议布局分析...')
@@ -225,24 +361,12 @@ export function useHandwritingOCR(options: UseHandwritingOCROptions = {}) {
         grid: null
       }
     }
-  }, [editor])
+  }, [editor, sendDebugToTerminal])
 
   /**
    * 新增：显示智能建议
    */
   const showSmartSuggestions = useCallback(async () => {
-    // 发送调试信息到服务器终端
-    const sendDebugToTerminal = async (message: string) => {
-      try {
-        await fetch('/makereal.tldraw.com/api/debug-log', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message })
-        })
-      } catch (err) {
-        // 忽略网络错误，不影响主要功能
-      }
-    }
 
     console.log('🎯 开始显示智能建议...')
     sendDebugToTerminal('🎯 开始显示智能建议...')
@@ -505,12 +629,9 @@ export function useHandwritingOCR(options: UseHandwritingOCROptions = {}) {
   }, [ocrState.suggestionsVisible, hideSmartSuggestions, showSmartSuggestions, options.enableTTS, speakContent])
 
   /**
-   * 从tldraw画布截取选中区域进行OCR处理
+   * 初始化OCR环境 - 第一阶段：加载图片元素和准备数据
    */
-  const processSelectedShapes = useCallback(async (): Promise<OCRProcessingResult> => {
-    const startTime = Date.now()
-    
-    // 发送调试信息到服务器终端
+  const initializeOCR = useCallback(async (): Promise<{ success: boolean; message: string }> => {
     const sendDebugToTerminal = async (message: string) => {
       try {
         await fetch('/makereal.tldraw.com/api/debug-log', {
@@ -527,7 +648,7 @@ export function useHandwritingOCR(options: UseHandwritingOCROptions = {}) {
       updateOCRState({
         isProcessing: true,
         progress: 0,
-        currentStep: 'Preparing to process...',
+        currentStep: 'Initializing OCR environment...',
         error: null,
         // 重置第三阶段状态
         suggestionPlacements: [],
@@ -535,17 +656,14 @@ export function useHandwritingOCR(options: UseHandwritingOCROptions = {}) {
         suggestionsVisible: false
       })
 
-      // 🎯 方案A：只截蓝框给OCR (推荐，最简单)
-      // 1️⃣ 取得当前选中的 shapeIds
-      const shapeIds = editor.getSelectedShapeIds()     // string[]
+      // 🎯 第一阶段：初始化环境，准备图片元素和数据
+      const shapeIds = editor.getSelectedShapeIds()
       
       if (shapeIds.length === 0) {
         throw new Error('请先选择要识别的手写内容区域')
       }
       
-      console.log('🔍 准备截取选中区域:')
-      console.log('  选中的ShapeIds:', shapeIds)
-      console.log('  ShapeIds数量:', shapeIds.length)
+      sendDebugToTerminal(`🔧 OCR初始化开始: 选中了${shapeIds.length}个shapes`)
 
       // 获取选中区域的边界框
       const selectionBounds = editor.getSelectionPageBounds()
@@ -553,24 +671,206 @@ export function useHandwritingOCR(options: UseHandwritingOCROptions = {}) {
         throw new Error('无法获取选中区域边界')
       }
       
-      console.log('📐 选中区域边界:', selectionBounds)
+      sendDebugToTerminal(`📐 选区边界: (${selectionBounds.x.toFixed(1)}, ${selectionBounds.y.toFixed(1)}, ${selectionBounds.w.toFixed(1)}×${selectionBounds.h.toFixed(1)})`)
 
-      // 2️⃣ 只导出这些 shape（正确调用方式）
+      updateOCRState({
+        progress: 30,
+        currentStep: 'Capturing image data...'
+      })
+
+      // 导出图像数据
       const { blob, width, height } = await editor.toImage(shapeIds, {
-        background: true,            // 是否带白底
-        format: 'png',               // 图像格式
-        scale: 1,                    // 🔧 修复：使用1:1比例，避免缩放导致的坐标偏移
-        padding: 0,                  // 不要额外留白
+        background: true,
+        format: 'png',
+        scale: 1,
+        padding: 0,
       })
 
       if (!blob) {
         throw new Error('无法截取画布图像')
       }
 
-      // 3️⃣ 快速自检
+      updateOCRState({
+        progress: 60,
+        currentStep: 'Converting to canvas...'
+      })
+
+      // 转换为canvas
+      const imageCanvas = await blobToCanvas(blob)
+      
+      sendDebugToTerminal(`🖼️ 图像转换完成: ${width}×${height}`)
+
+      updateOCRState({
+        progress: 90,
+        currentStep: 'Setting up image elements...'
+      })
+
+      // 创建并设置图片元素
+      const imgId = 'scan'
+      let img = document.getElementById(imgId) as HTMLImageElement | null
+      if (!img) {
+        img = document.createElement('img')
+        img.id = imgId
+        img.style.position = 'absolute'
+        img.style.pointerEvents = 'none'
+        img.style.opacity = '0.001'
+        document.body.appendChild(img)
+      }
+
+      // 设置图片属性
+      img.setAttribute('data-ocr-image', 'true')
+      img.src = URL.createObjectURL(blob)
+      
+      // 确保图片加载完成
+      await new Promise<void>((resolve, reject) => {
+        img!.onload = () => {
+          sendDebugToTerminal(`✅ 图片元素加载完成: naturalSize ${img!.naturalWidth}×${img!.naturalHeight}`)
+          resolve()
+        }
+        img!.onerror = () => reject(new Error('图片加载失败'))
+        
+        // 如果图片已经加载完成
+        if (img!.complete && img!.naturalWidth > 0) {
+          sendDebugToTerminal(`✅ 图片元素已经加载: naturalSize ${img!.naturalWidth}×${img!.naturalHeight}`)
+          resolve()
+        }
+      })
+
+      // 设置图片位置匹配选区
+      const camera = editor.getCamera()
+      const screenX = (selectionBounds.x - camera.x) * camera.z
+      const screenY = (selectionBounds.y - camera.y) * camera.z
+      const screenW = selectionBounds.w * camera.z
+      const screenH = selectionBounds.h * camera.z
+
+      img.style.left = `${screenX}px`
+      img.style.top = `${screenY}px`
+      img.style.width = `${screenW}px`
+      img.style.height = `${screenH}px`
+
+      updateOCRState({
+        progress: 100,
+        currentStep: 'Initialization completed',
+        isInitialized: true,
+        initializationData: {
+          selectionBounds,
+          shapeIds,
+          imageCanvas
+        },
+        isProcessing: false
+      })
+
+      sendDebugToTerminal(`✅ OCR初始化完成！图片元素已准备就绪，可以进行第二次点击进行真正的OCR识别`)
+
+      addToast({
+        id: 'ocr-initialized',
+        title: 'OCR环境已初始化',
+        description: '图片元素已准备就绪，请再次点击进行OCR识别',
+        severity: 'info'
+      })
+
+      return {
+        success: true,
+        message: 'OCR环境初始化成功，请再次点击进行识别'
+      }
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '初始化失败'
+      
+      updateOCRState({
+        isProcessing: false,
+        error: errorMessage,
+        isInitialized: false,
+        initializationData: null
+      })
+
+      sendDebugToTerminal(`❌ OCR初始化失败: ${errorMessage}`)
+
+      return {
+        success: false,
+        message: errorMessage
+      }
+    }
+  }, [editor, updateOCRState, addToast])
+
+  /**
+   * 从tldraw画布截取选中区域进行OCR处理 - 两阶段机制
+   */
+  const processSelectedShapes = useCallback(async (): Promise<OCRProcessingResult> => {
+    const startTime = Date.now()
+    
+    // 发送调试信息到服务器终端
+    const sendDebugToTerminal = async (message: string) => {
+      try {
+        await fetch('/makereal.tldraw.com/api/debug-log', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message })
+        })
+      } catch (err) {
+        // 忽略网络错误，不影响主要功能
+      }
+    }
+
+    // 🎯 两阶段机制判断
+    if (!ocrState.isInitialized || !ocrState.initializationData) {
+      sendDebugToTerminal('🔧 第一阶段：开始OCR环境初始化...')
+      const initResult = await initializeOCR()
+      
+      return {
+        success: initResult.success,
+        error: initResult.success ? undefined : initResult.message,
+        processingTime: Date.now() - startTime,
+        // 第一阶段不返回OCR结果
+        result: undefined
+      }
+    }
+
+    // 🎯 第二阶段：使用已初始化的数据进行真正的OCR识别
+    sendDebugToTerminal('🚀 第二阶段：开始真正的OCR识别...')
+    
+    try {
+      updateOCRState({
+        isProcessing: true,
+        progress: 0,
+        currentStep: 'Starting OCR recognition...',
+        error: null,
+        // 重置第三阶段状态
+        suggestionPlacements: [],
+        spatialGrid: null,
+        suggestionsVisible: false
+      })
+
+      // 使用初始化阶段准备的数据
+      const { selectionBounds: initSelectionBounds, shapeIds: initShapeIds, imageCanvas: initImageCanvas } = ocrState.initializationData
+      
+      if (!initImageCanvas || !initSelectionBounds) {
+        throw new Error('初始化数据不完整，请重新初始化')
+      }
+
+      sendDebugToTerminal(`✅ 使用已初始化的数据: canvas=${initImageCanvas.width}×${initImageCanvas.height}, 选区=${initSelectionBounds.w.toFixed(1)}×${initSelectionBounds.h.toFixed(1)}`)
+
+      console.log('🔍 使用初始化的选中区域:')
+      console.log('  选中的ShapeIds:', initShapeIds)
+      console.log('  ShapeIds数量:', initShapeIds.length)
+      console.log('📐 选中区域边界:', initSelectionBounds)
+
+      updateOCRState({
+        progress: 20,
+        currentStep: 'Using initialized image data...'
+      })
+
+             // 🎯 第二阶段：直接使用已准备好的canvas，无需重新截取
+       // 使用初始化阶段已经准备好的canvas作为原始图像
+       const originalCanvas = initImageCanvas
+       const width = originalCanvas.width
+       const height = originalCanvas.height
+       const selectionBounds = initSelectionBounds
+
+      // 3️⃣ 验证已初始化的数据
       console.table({
-        'shapeIds数量': shapeIds.length,
-        'blob大小(KB)': Math.round(blob.size / 1024),
+        'shapeIds数量': initShapeIds.length,
+        'canvas大小': `${width}×${height}`,
         'selection宽度': selectionBounds.w,
         'selection高度': selectionBounds.h,
         '图像宽度': width,
@@ -579,25 +879,11 @@ export function useHandwritingOCR(options: UseHandwritingOCROptions = {}) {
         '缩放比例': `X=${(width / selectionBounds.w).toFixed(3)}, Y=${(height / selectionBounds.h).toFixed(3)}`
       })
       
-      console.log('🎯 Scale=1验证:')
-      console.log('  图像尺寸与选区应该完全一致')
+      console.log('🎯 第二阶段验证:')
+      console.log('  使用已初始化的canvas数据')
       console.log('  实际图像尺寸:', width, '×', height)
       console.log('  选区尺寸:', selectionBounds.w.toFixed(1), '×', selectionBounds.h.toFixed(1))
       console.log('  尺寸差异: ΔW =', Math.abs(width - selectionBounds.w).toFixed(1), ', ΔH =', Math.abs(height - selectionBounds.h).toFixed(1))
-      
-      if (Math.abs(width - selectionBounds.w) > 1 || Math.abs(height - selectionBounds.h) > 1) {
-        console.warn('⚠️ 警告: 图像尺寸与选区尺寸不匹配，可能仍有缩放问题')
-      } else {
-        console.log('✅ 图像尺寸与选区完美匹配，scale=1生效')
-      }
-
-      updateOCRState({
-        progress: 20,
-        currentStep: 'Converting image format...'
-      })
-
-      // 将blob转换为canvas
-      const originalCanvas = await blobToCanvas(blob)
 
       updateOCRState({
         progress: 30,
@@ -763,44 +1049,116 @@ export function useHandwritingOCR(options: UseHandwritingOCROptions = {}) {
                 console.log(`🎯 自动标记 ${errorAnalysisResult.result.results.length} 个错误...`)
                 sendDebugToTerminal(`🎯 开始自动标记 ${errorAnalysisResult.result.results.length} 个错误...`)
                 
-                // 转换错误坐标到tldraw坐标系 - 使用新算法
-                const convertedErrors = (() => {
-                  // 构建图片DOM数据结构
-                  const imageData: DomImageData = {
-                    rect: {
-                      x: selectionBounds.x,
-                      y: selectionBounds.y,
-                      width: selectionBounds.w,
-                      height: selectionBounds.h
-                    },
-                    naturalWidth: width,  // OCR处理的原始图像宽度
-                    naturalHeight: height // OCR处理的原始图像高度
+                // 转换错误坐标到tldraw坐标系 - 使用OcrBoundingBoxVisualizer逻辑
+                const convertedErrors = await (async () => {
+                  sendDebugToTerminal('🔄 开始使用OcrBoundingBoxVisualizer逻辑映射GPT错误坐标...')
+                  
+                  // 🔧 关键修复：在OCR处理完成后，window.ocrResults已经存在
+                  // 先保存OCR结果到window对象，确保可视化器逻辑可以找到数据
+                  if (typeof window !== 'undefined') {
+                    (window as any).ocrResults = ocrResult.charBoxes
+                    sendDebugToTerminal(`✅ 已保存OCR结果到window对象: ${ocrResult.charBoxes.length}个字符`)
                   }
                   
-                  sendDebugToTerminal('🔄 使用新算法映射GPT错误坐标...')
-                  sendDebugToTerminal(`📐 选区边界: (${selectionBounds.x.toFixed(1)}, ${selectionBounds.y.toFixed(1)}, ${selectionBounds.w.toFixed(1)}×${selectionBounds.h.toFixed(1)})`)
-                  sendDebugToTerminal(`🖼️ OCR图像尺寸: ${width}×${height}`)
+                  // 确保OCR图片元素正确标记
+                  ensureOcrImageElement()
                   
-                  // 对每个错误应用新的坐标映射算法
-                  return errorAnalysisResult.result.results.map((error, index) => {
-                    // 使用 pixelBoxToPageBox 进行单个框的转换
-                    const mappedBox = pixelBoxToPageBox(
-                      {
+                  // 等待图片元素加载 - 最多等待500ms
+                  let imageData = getImageData()
+                  let retryCount = 0
+                  while (!imageData && retryCount < 5) {
+                    sendDebugToTerminal(`⏳ 等待图片元素加载... (尝试 ${retryCount + 1}/5)`)
+                    await new Promise(resolve => setTimeout(resolve, 100))
+                    ensureOcrImageElement()
+                    imageData = getImageData()
+                    retryCount++
+                  }
+                  
+                  // 🔧 新策略：如果仍然找不到图片元素，使用OCR处理时的原始canvas数据
+                  if (!imageData) {
+                    sendDebugToTerminal('❌ 无法获取图片数据，构造标准图片数据')
+                    
+                    // 使用OCR处理时记录的选区和尺寸信息
+                    const standardImageData: DomImageData = {
+                      rect: {
+                        x: selectionBounds.x,
+                        y: selectionBounds.y,
+                        width: selectionBounds.w,
+                        height: selectionBounds.h
+                      },
+                      naturalWidth: ocrResult.metadata.imageWidth,
+                      naturalHeight: ocrResult.metadata.imageHeight
+                    }
+                    
+                    sendDebugToTerminal(`🎯 使用标准图片数据: rect(${standardImageData.rect.x.toFixed(1)}, ${standardImageData.rect.y.toFixed(1)}, ${standardImageData.rect.width.toFixed(1)}×${standardImageData.rect.height.toFixed(1)})`)
+                    sendDebugToTerminal(`🖼️ 原始尺寸: ${standardImageData.naturalWidth}×${standardImageData.naturalHeight}`)
+                    
+                    // 使用完全相同的坐标映射算法（与OcrBoundingBoxVisualizer相同）
+                    const mappedPageBoxes = mapOcrBoxesToPage(
+                      errorAnalysisResult.result.results.map(error => ({
                         id: error.id,
                         x: error.bbox.x,
                         y: error.bbox.y,
                         w: error.bbox.w,
-                        h: error.bbox.h
-                      },
-                      imageData,
+                        h: error.bbox.h,
+                        char: error.suggestion
+                      })),
+                      standardImageData,
                       editor
                     )
+                    
+                    sendDebugToTerminal(`✅ 使用标准方法映射了 ${mappedPageBoxes.length} 个错误坐标`)
+                    
+                    return errorAnalysisResult.result.results.map((error, index) => {
+                      const mappedBox = mappedPageBoxes[index]
+                      
+                      sendDebugToTerminal(`  📍 错误 ${error.id}: 像素(${error.bbox.x},${error.bbox.y},${error.bbox.w}×${error.bbox.h}) → page(${mappedBox.x.toFixed(1)},${mappedBox.y.toFixed(1)},${mappedBox.w.toFixed(1)}×${mappedBox.h.toFixed(1)})`)
+                  
+                  return {
+                    ...error,
+                    bbox: {
+                          x: mappedBox.x,
+                          y: mappedBox.y,
+                          w: mappedBox.w,
+                          h: mappedBox.h
+                    },
+                    center: {
+                          x: mappedBox.x + mappedBox.w / 2,
+                          y: mappedBox.y + mappedBox.h / 2
+                        }
+                      }
+                    })
+                  }
+                  
+                  sendDebugToTerminal(`📐 图片数据: rect(${imageData.rect.x.toFixed(1)}, ${imageData.rect.y.toFixed(1)}, ${imageData.rect.width.toFixed(1)}×${imageData.rect.height.toFixed(1)})`)
+                  sendDebugToTerminal(`🖼️ 原始尺寸: ${imageData.naturalWidth}×${imageData.naturalHeight}`)
+                  
+                  // 使用完全相同的坐标映射算法
+                  const mappedPageBoxes = mapOcrBoxesToPage(
+                    errorAnalysisResult.result.results.map(error => ({
+                      id: error.id,
+                      x: error.bbox.x,
+                      y: error.bbox.y,
+                      w: error.bbox.w,
+                      h: error.bbox.h,
+                      char: error.suggestion, // 添加字符信息用于调试
+                      ...error
+                    })),
+                    imageData,
+                    editor
+                  )
+                  
+                  sendDebugToTerminal(`✅ 映射了 ${mappedPageBoxes.length} 个错误坐标`)
+                  
+                  // 合并映射结果和原始错误信息
+                  const results = errorAnalysisResult.result.results.map((error, index) => {
+                    const mappedBox = mappedPageBoxes[index]
                     
                     sendDebugToTerminal(`  📍 错误 ${error.id}: 像素(${error.bbox.x},${error.bbox.y},${error.bbox.w}×${error.bbox.h}) → page(${mappedBox.x.toFixed(1)},${mappedBox.y.toFixed(1)},${mappedBox.w.toFixed(1)}×${mappedBox.h.toFixed(1)})`)
                     
                     // 验证映射结果
-                    if (isNaN(mappedBox.x) || isNaN(mappedBox.y)) {
-                      console.warn(`⚠️ 错误 ${error.id} 映射失败，使用原始坐标`)
+                    if (isNaN(mappedBox.x) || isNaN(mappedBox.y) || isNaN(mappedBox.w) || isNaN(mappedBox.h)) {
+                      console.error(`❌ 错误 ${error.id} 映射失败，包含NaN`)
                       return error
                     }
                     
@@ -815,9 +1173,16 @@ export function useHandwritingOCR(options: UseHandwritingOCROptions = {}) {
                       center: {
                         x: mappedBox.x + mappedBox.w / 2,
                         y: mappedBox.y + mappedBox.h / 2
-                      }
                     }
-                  })
+                  }
+                })
+                  
+                  // 在开发环境下运行调试
+                  if (process.env.NODE_ENV === 'development') {
+                    debugCompareWithOcrVisualizer(results)
+                  }
+                  
+                  return results
                 })()
                 
                 // 🎬 使用智能动画标记代替静态标记
@@ -1124,6 +1489,10 @@ export function useHandwritingOCR(options: UseHandwritingOCROptions = {}) {
       suggestionsVisible: false,
       hintShapeMapping: new Map(),
       
+      // 重置两阶段OCR状态
+      isInitialized: false,
+      initializationData: null,
+      
       error: null
     })
   }, [])
@@ -1225,6 +1594,9 @@ export function useHandwritingOCR(options: UseHandwritingOCROptions = {}) {
     resetOCRState,
     clearErrorMarksFromCanvas,
     
+    // 新增：两阶段OCR函数
+    initializeOCR,
+    
     // 新增：第三阶段智能建议函数
     showSmartSuggestions,
     hideSmartSuggestions,
@@ -1238,6 +1610,10 @@ export function useHandwritingOCR(options: UseHandwritingOCROptions = {}) {
     lastResult: ocrState.lastResult,
     lastErrorAnalysis: ocrState.lastErrorAnalysis,
     errorMarkShapeIds: ocrState.errorMarkShapeIds,
+    
+    // 新增：两阶段OCR状态属性
+    isInitialized: ocrState.isInitialized,
+    initializationData: ocrState.initializationData,
     
     // 新增：第三阶段状态属性
     suggestionPlacements: ocrState.suggestionPlacements,

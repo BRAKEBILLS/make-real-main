@@ -1,0 +1,369 @@
+{
+  "timestamp": "2025-06-19T21:35:04.953Z",
+  "type": "canvas_screenshot_with_coordinates",
+  "screenshot": {
+    "filename": "canvas_screenshot_2025-06-19T21-35-04.png",
+    "format": "原生PNG格式（editor.toImage生成）",
+    "description": "完整画布截图，使用tldraw官方editor.toImage()方法生成，包含所有绘制内容和灰色虚线标记"
+  },
+  "handwritingCoordinates": {
+    "count": 18,
+    "coordinates": [
+      {
+        "id": "c001",
+        "shapeId": "shape:h9cZaRh37xxAK4_z8ZR5t",
+        "type": "handwritten_content",
+        "char": "手写区域1",
+        "confidence": 1,
+        "bbox": {
+          "x": 1478.2066253195728,
+          "y": 1847.8410535967041,
+          "w": 43.23000000000002,
+          "h": 4.809999999999945
+        },
+        "center": {
+          "x": 1499.8216253195728,
+          "y": 1850.246053596704
+        },
+        "source": "tldraw_native_coordinates",
+        "label": "c001"
+      },
+      {
+        "id": "c002",
+        "shapeId": "shape:ng3zEGJyT9MSwkyR7-FAx",
+        "type": "handwritten_content",
+        "char": "手写区域2",
+        "confidence": 1,
+        "bbox": {
+          "x": 936.9751107511144,
+          "y": 1717.0361044635215,
+          "w": 9.016267013410584,
+          "h": 66.56999999999994
+        },
+        "center": {
+          "x": 941.4832442578197,
+          "y": 1750.3211044635214
+        },
+        "source": "tldraw_native_coordinates",
+        "label": "c002"
+      },
+      {
+        "id": "c003",
+        "shapeId": "shape:wh-TzowD-2Mk-wD1bYG-o",
+        "type": "handwritten_content",
+        "char": "手写区域3",
+        "confidence": 1,
+        "bbox": {
+          "x": 930.1602786579843,
+          "y": 1903.2640092233385,
+          "w": 41.60136057357522,
+          "h": 56.62430859991446
+        },
+        "center": {
+          "x": 950.960958944772,
+          "y": 1931.5761635232957
+        },
+        "source": "tldraw_native_coordinates",
+        "label": "c003"
+      },
+      {
+        "id": "c004",
+        "shapeId": "shape:sIPZa_7mijR-Z3nrrTRFB",
+        "type": "handwritten_content",
+        "char": "手写区域4",
+        "confidence": 1,
+        "bbox": {
+          "x": 1480.857006405412,
+          "y": 2078.0136870813076,
+          "w": 79.52999999999997,
+          "h": 3.7199999999998
+        },
+        "center": {
+          "x": 1520.6220064054119,
+          "y": 2079.8736870813073
+        },
+        "source": "tldraw_native_coordinates",
+        "label": "c004"
+      },
+      {
+        "id": "c005",
+        "shapeId": "shape:u6va12g6in6EneO5GAT9O",
+        "type": "handwritten_content",
+        "char": "手写区域5",
+        "confidence": 1,
+        "bbox": {
+          "x": 1358.6946042912705,
+          "y": 1912.5981805673114,
+          "w": 32.549999999999955,
+          "h": 1.1488160000001244
+        },
+        "center": {
+          "x": 1374.9696042912706,
+          "y": 1913.1725885673113
+        },
+        "source": "tldraw_native_coordinates",
+        "label": "c005"
+      },
+      {
+        "id": "c006",
+        "shapeId": "shape:i3Zyon_T5QdBLJO62psHR",
+        "type": "handwritten_content",
+        "char": "手写区域6",
+        "confidence": 1,
+        "bbox": {
+          "x": 926.8221482518418,
+          "y": 2079.432505216934,
+          "w": 57.155143669638505,
+          "h": 57.46022158673031
+        },
+        "center": {
+          "x": 955.3997200866611,
+          "y": 2108.1626160102987
+        },
+        "source": "tldraw_native_coordinates",
+        "label": "c006"
+      },
+      {
+        "id": "c007",
+        "shapeId": "shape:xDzORL-ZYOJspeTPEpO91",
+        "type": "handwritten_content",
+        "char": "手写区域7",
+        "confidence": 1,
+        "bbox": {
+          "x": 1821.4056970405793,
+          "y": 1932.5956313634306,
+          "w": 2.1376184977057164,
+          "h": 75.22000000000003
+        },
+        "center": {
+          "x": 1822.4745062894322,
+          "y": 1970.2056313634307
+        },
+        "source": "tldraw_native_coordinates",
+        "label": "c007"
+      },
+      {
+        "id": "c008",
+        "shapeId": "shape:yBEUq8NSCGFL6892RGdtu",
+        "type": "handwritten_content",
+        "char": "手写区域8",
+        "confidence": 1,
+        "bbox": {
+          "x": 748.4371571542841,
+          "y": 2183.4527607136056,
+          "w": 55.27999999999997,
+          "h": 2.0900000000001455
+        },
+        "center": {
+          "x": 776.0771571542841,
+          "y": 2184.4977607136057
+        },
+        "source": "tldraw_native_coordinates",
+        "label": "c008"
+      },
+      {
+        "id": "c009",
+        "shapeId": "shape:_eIy0W1XMlREbT9mIJPlA",
+        "type": "handwritten_content",
+        "char": "手写区域9",
+        "confidence": 1,
+        "bbox": {
+          "x": 768.4518556258795,
+          "y": 1709.3298333715436,
+          "w": 41.50999999999999,
+          "h": 13.059999999999945
+        },
+        "center": {
+          "x": 789.2068556258795,
+          "y": 1715.8598333715436
+        },
+        "source": "tldraw_native_coordinates",
+        "label": "c009"
+      },
+      {
+        "id": "c010",
+        "shapeId": "shape:w9uyo1seYsX_E-n7qIOgD",
+        "type": "handwritten_content",
+        "char": "手写区域10",
+        "confidence": 1,
+        "bbox": {
+          "x": 1328.2368281716676,
+          "y": 1959.013016751632,
+          "w": 80.24000000000001,
+          "h": 0
+        },
+        "center": {
+          "x": 1368.3568281716675,
+          "y": 1959.013016751632
+        },
+        "source": "tldraw_native_coordinates",
+        "label": "c010"
+      },
+      {
+        "id": "c011",
+        "shapeId": "shape:eGWNIK86WIyn9Sxaby7Al",
+        "type": "handwritten_content",
+        "char": "手写区域11",
+        "confidence": 1,
+        "bbox": {
+          "x": 1599.3905925617837,
+          "y": 1936.7922330477527,
+          "w": 60.41121837286846,
+          "h": 59.29893309698832
+        },
+        "center": {
+          "x": 1629.596201748218,
+          "y": 1966.441699596247
+        },
+        "source": "tldraw_native_coordinates",
+        "label": "c011"
+      },
+      {
+        "id": "c012",
+        "shapeId": "shape:MWtlt_LjTQEhX2QxEhrh-",
+        "type": "handwritten_content",
+        "char": "手写区域12",
+        "confidence": 1,
+        "bbox": {
+          "x": 1472.0325556059277,
+          "y": 1850.6930941129874,
+          "w": 2.580210578227252,
+          "h": 223.75000000000023
+        },
+        "center": {
+          "x": 1473.3226608950413,
+          "y": 1962.5680941129876
+        },
+        "source": "tldraw_native_coordinates",
+        "label": "c012"
+      },
+      {
+        "id": "c013",
+        "shapeId": "shape:6HIDxhisOw240ff77WNoB",
+        "type": "handwritten_content",
+        "char": "手写区域13",
+        "confidence": 1,
+        "bbox": {
+          "x": 753.0325459753674,
+          "y": 1719.3551879136307,
+          "w": 21.71396472938011,
+          "h": 477.1918233089864
+        },
+        "center": {
+          "x": 763.8895283400575,
+          "y": 1957.951099568124
+        },
+        "source": "tldraw_native_coordinates",
+        "label": "c013"
+      },
+      {
+        "id": "c014",
+        "shapeId": "shape:soXr95rzP4ZxFBEsfQnB0",
+        "type": "handwritten_content",
+        "char": "手写区域14",
+        "confidence": 1,
+        "bbox": {
+          "x": 1026.9378898479206,
+          "y": 1696.120182080938,
+          "w": 93.89280982501668,
+          "h": 499.6498148567964
+        },
+        "center": {
+          "x": 1073.884294760429,
+          "y": 1945.9450895093364
+        },
+        "source": "tldraw_native_coordinates",
+        "label": "c014"
+      },
+      {
+        "id": "c015",
+        "shapeId": "shape:LWkBFTvpUiShTWajWjve1",
+        "type": "handwritten_content",
+        "char": "手写区域15",
+        "confidence": 1,
+        "bbox": {
+          "x": 1954.9544722073067,
+          "y": 1909.404796862338,
+          "w": 83.39869754398455,
+          "h": 66.20000000000005
+        },
+        "center": {
+          "x": 1996.6538209792989,
+          "y": 1942.504796862338
+        },
+        "source": "tldraw_native_coordinates",
+        "label": "c015"
+      },
+      {
+        "id": "c016",
+        "shapeId": "shape:FggYhkFdXH9fWKepzLsAb",
+        "type": "handwritten_content",
+        "char": "手写区域16",
+        "confidence": 1,
+        "bbox": {
+          "x": 1254.5303063442811,
+          "y": 1589.608950790281,
+          "w": 6.818417945684359,
+          "h": 73.15000000000009
+        },
+        "center": {
+          "x": 1257.9395153171233,
+          "y": 1626.183950790281
+        },
+        "source": "tldraw_native_coordinates",
+        "label": "c016"
+      },
+      {
+        "id": "c017",
+        "shapeId": "shape:CHkUzdeQRzEy8IJRUny5b",
+        "type": "handwritten_content",
+        "char": "手写区域17",
+        "confidence": 1,
+        "bbox": {
+          "x": 1227.5799638899057,
+          "y": 1585.690996141649,
+          "w": 57.02999999999997,
+          "h": 2.3175515851162345
+        },
+        "center": {
+          "x": 1256.0949638899056,
+          "y": 1586.8497719342072
+        },
+        "source": "tldraw_native_coordinates",
+        "label": "c017"
+      },
+      {
+        "id": "c018",
+        "shapeId": "shape:cBLo1qsGZsnhcKm9CTp2c",
+        "type": "handwritten_content",
+        "char": "手写区域18",
+        "confidence": 1,
+        "bbox": {
+          "x": 2049.92297745146,
+          "y": 1805.564594428563,
+          "w": 79.56876597950941,
+          "h": 277.8899999999999
+        },
+        "center": {
+          "x": 2089.707360441215,
+          "y": 1944.5095944285629
+        },
+        "source": "tldraw_native_coordinates",
+        "label": "c018"
+      }
+    ]
+  },
+  "metadata": {
+    "captureMethod": "tldraw_editor_toImage_official_api",
+    "coordinateSystem": "tldraw_page_coordinates",
+    "includes": [
+      "handwritten_content",
+      "gray_dashed_rectangles",
+      "coordinate_labels"
+    ],
+    "imageFormat": "PNG",
+    "scale": 2,
+    "background": true,
+    "padding": 20
+  }
+}

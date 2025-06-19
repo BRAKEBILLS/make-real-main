@@ -6,11 +6,7 @@ export const maxDuration = 120
 
 import dynamic from 'next/dynamic'
 import 'tldraw/tldraw.css'
-import { MakeRealButton } from '../components/MakeRealButton'
-import { HandwritingButton } from '../components/HandwritingButton'
-import { SelectionCoordinatesExporter } from '../components/SelectionCoordinatesExporter'
-import { FullDataExporter } from '../components/FullDataExporter'
-import { OcrBoundingBoxVisualizer } from '../components/OcrBoundingBoxVisualizer'
+import { MyScriptVisualizerButton } from '../components/MyScriptVisualizerButton'
 import { PreviewShapeUtil } from '../PreviewShape/PreviewShape'
 import { AnimatedMarkShapeUtil } from '../lib/AnimatedMarkShapeUtil'
 
@@ -30,15 +26,13 @@ const Tldraw = dynamic(async () => (await import('tldraw')).Tldraw, {
 
 const shapeUtils = [PreviewShapeUtil, AnimatedMarkShapeUtil]
 const components = {
-	SharePanel: () => (
+	SharePanel: () => {
+		return (
 		<div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-			<MakeRealButton />
-			<HandwritingButton />
-			<SelectionCoordinatesExporter />
-			<FullDataExporter />
-			<OcrBoundingBoxVisualizer />
+			<MyScriptVisualizerButton />
 		</div>
-	),
+		)
+	},
 	MainMenu: () => (
 		<DefaultMainMenu>
 			<DefaultMainMenuContent />
@@ -131,7 +125,7 @@ function InsideTldrawContext() {
 					}}
 				>
 					<div>🎨 tldraw Handwriting Animation System</div>
-					        <div>Suggestions Visible: {suggestionsVisible ? '✅' : '❌'}</div>
+					<div>Suggestions Visible: {suggestionsVisible ? '✅' : '❌'}</div>
 					<div>Error Analysis: {lastErrorAnalysis?.success ? '✅' : '❌'}</div>
 					<div>Has Errors: {lastErrorAnalysis?.result?.hasErrors ? '✅' : '❌'}</div>
 					<div>Result Count: {lastErrorAnalysis?.result?.results?.length || 0}</div>

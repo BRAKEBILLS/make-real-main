@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic'
 // 确保data目录结构存在
 async function ensureDataDirectories() {
   const dataDir = path.join(process.cwd(), 'data')
-  const subdirs = ['ocr-results', 'visualizations']
+  const subdirs = ['ocr-results', 'visualizations', 'canvas-screenshots', 'coordinates', 'gpt-analysis']
   
   try {
     // 创建主data目录
@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({
         success: true,
         message: 'Data directories created successfully',
-        directories: ['data/ocr-results', 'data/visualizations']
+        directories: ['data/ocr-results', 'data/visualizations', 'data/canvas-screenshots', 'data/coordinates', 'data/gpt-analysis']
       })
     } else {
       return NextResponse.json({
@@ -57,9 +57,17 @@ export async function POST(req: NextRequest) {
     
     switch (action) {
       case 'save-file':
-        // 根据文件类型决定保存到哪个子目录
+        // 根据文件名前缀决定保存到哪个子目录
         let subdir = 'ocr-results'
-        if (filename.includes('visualization_')) subdir = 'visualizations'
+        if (filename.startsWith('canvas_screenshot_')) {
+          subdir = 'canvas-screenshots'
+        } else if (filename.startsWith('coordinates_')) {
+          subdir = 'coordinates'
+        } else if (filename.startsWith('gpt_analysis_')) {
+          subdir = 'gpt-analysis'
+        } else if (filename.startsWith('visualization_')) {
+          subdir = 'visualizations'
+        }
         
         // 确保目录存在
         const targetDir = path.join(process.cwd(), 'data', subdir)

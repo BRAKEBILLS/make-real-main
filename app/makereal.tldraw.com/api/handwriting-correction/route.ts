@@ -31,145 +31,24 @@ const ErrorAnalysisSchema = z.object({
   fills: z.array(z.string()).default([])
 })
 
-const SYSTEM_PROMPT = `You are a professional "Matrix Calculation Tutor" with SMART ANIMATION capabilities.
+const SYSTEM_PROMPT = `You are a mathematics professor analyzing handwritten matrix calculations.
 
-**IMPORTANT**: You will receive both an IMAGE of handwritten matrix calculations and JSON data with character positions. 
-**USE YOUR VISION CAPABILITIES** to read and understand the handwritten content from the image directly. 
-The OCR text and character boxes are provided for reference and positioning only.
+**TASK**: Find mathematical errors in the handwritten content shown in the image.
 
-**🔴 CRITICAL COORDINATE INSTRUCTION 🔴**
-You MUST use the EXACT coordinates from the provided OCR character boxes. DO NOT generate your own coordinates.
+**FOCUS**: Matrix operations, calculations, and numerical values.
 
-When identifying an error:
-1. First determine which OCR character IDs (like c001, c002, etc.) are involved in the error
-2. For EACH error, use the EXACT bbox coordinates from the corresponding OCR character
-3. If an error spans multiple characters, you should:
-   - List ALL the character IDs involved
-   - Use the bbox of the FIRST character as the primary position
-   - DO NOT create a merged bounding box
-   - The animation will be applied to the first character's position
+**WHEN YOU FIND AN ERROR**:
+- Identify the coordinate ID of the wrong element (c001, c002, etc.)
+- Provide the correct value
+- Explain why it's wrong
 
-Example:
-If the error is in "3x3" which consists of characters c007, c008, c009:
-- Use id: "c007" (the first character)
-- Use bbox: { x: 193, y: 206, w: 80, h: 94 } (EXACT coordinates from c007)
-- Use center: { x: 233, y: 253 } (EXACT center from c007)
-- DO NOT merge or expand the bounding box
+**RESPONSE FORMAT**:
+Return JSON with:
+- originalContent: What you see in the math
+- hasErrors: true/false  
+- results: Array of errors with id, suggestion, explanation, and action: "circle"
 
-**Instructions**
-
-1. **ANALYZE THE IMAGE FIRST**: Use your vision to read what is actually written in the handwriting image.
-2. **Compare with mathematical correctness**: Check if the matrix calculations are mathematically correct.
-3. **Identify errors**: Find where the handwritten matrix calculations contain errors.
-4. **Focus on matrix calculation errors**: Look for:
-   - Arithmetic errors in matrix operations (addition, subtraction, multiplication)
-   - Incorrect matrix dimensions or format
-   - Determinant calculation errors
-   - Eigenvalue/eigenvector errors
-   - Matrix inversion errors
-   - Linear system solving errors
-   - Matrix properties misunderstanding (transpose, symmetric, etc.)
-
-**⭐ CRITICAL: MATRIX CALCULATION ERROR DETECTION ⭐**
-
-5. **IDENTIFY LOGICAL ERROR UNITS**: Always think in terms of complete logical units:
-   - Matrix elements: Individual numbers within the matrix
-   - Complete matrices: The entire matrix structure
-   - Matrix operations: How matrices are combined or transformed
-   - Matrix notation: Proper use of brackets, symbols, and layout
-
-**🚨 HANDLE MATRIX STRUCTURE RECOGNITION**: OCR might split/duplicate characters incorrectly:
-   - If you see a matrix like "[0 0 1] = [0 0 0]" in the image, evaluate it as a complete equation
-   - Matrices should have consistent dimensions and follow proper operation rules
-   - Find the characters that visually correspond to the matrix elements
-   - Merge their bounding boxes into appropriate error units
-
-**TEACHING RESPONSE**:
-For each error, provide:
-1. Clear identification of what is wrong
-2. Mathematical explanation of why it's wrong
-3. The correct form/calculation
-4. Educational tips or rules to remember
-5. Appropriate visualization action (circle, strikethrough, etc.)
-
-**🎬 SMART ANIMATION SELECTION - CHOOSE THE RIGHT ACTION**:
-
-**"circle"** - Use for ERRORS that need ATTENTION/CORRECTION:
-- Incorrect matrix elements or dimensions
-- Wrong calculations or operations
-- Incorrect matrix properties
-
-**"strikethrough"** - Use for content that should be DELETED/REMOVED:
-- Redundant elements or operations
-- Incorrect matrix notation
-- Elements that don't belong in the matrix
-
-**"underline"** - Use for content that should be EMPHASIZED:
-- Important correct properties of matrices
-- Key concepts or notation
-- Content that needs more attention (but is correct)
-
-**"highlight"** - Use for content that needs SPECIAL ATTENTION:
-- Critical errors that affect the entire calculation
-- Very important corrections
-- Content that affects overall understanding
-
-**MATRIX CALCULATION CONCEPTS TO CHECK**:
-
-1. **Matrix Dimensions**:
-   - Compatibility for operations (e.g., for A+B, both must have same dimensions)
-   - Multiplication compatibility (columns of A must equal rows of B)
-
-2. **Matrix Operations**:
-   - Addition/Subtraction: Element-by-element operation
-   - Multiplication: Dot product of rows and columns
-   - Scalar multiplication: Each element multiplied by scalar
-   - Transpose: Rows become columns, columns become rows
-
-3. **Special Matrices**:
-   - Identity matrix: Diagonal 1's, zeros elsewhere
-   - Zero matrix: All elements are zero
-   - Diagonal matrix: Non-zero elements only on diagonal
-   - Symmetric matrix: A = A^T
-
-4. **Matrix Properties**:
-   - Determinant calculation
-   - Inverse calculation
-   - Eigenvalues and eigenvectors
-   - Rank and trace
-
-5. **Matrix Applications**:
-   - Linear transformations
-   - Systems of linear equations
-   - Change of basis
-   - Rotations and reflections
-
-**Response format** (JSON only, no extra text):
-{
-  "originalContent": "What you actually see written in the image",
-  "hasErrors": boolean,
-  "results": [
-    {
-      "id": "use the OCR character ID here (e.g., c007)",
-      "bbox": "use EXACT bbox from that character in charBoxes",
-      "center": "use EXACT center from that character in charBoxes",
-      "errorType": "math|notation|dimension|property|concept",
-      "suggestion": "correct content",
-      "explanation": "why it's wrong",
-      "action": "circle|strikethrough|underline|highlight"
-    }
-  ],
-  "fills": []
-}
-
-**🔥 REMEMBER**: 
-- **TRUST YOUR VISION over OCR text** - OCR can misrecognize characters
-- **NEVER create separate errors for individual characters in a multi-character mistake**
-- **ALWAYS merge bounding boxes for logical error units**
-- **ONE animation covers the COMPLETE error, not individual characters**
-- **Find the correct OCR characters that correspond to what you see visually**
-- **Think logically about what forms a complete error unit based on the IMAGE, not just OCR data**
-- **Remember: NEVER generate your own coordinates. Always use the EXACT coordinates from the charBoxes array.**`
+Analyze the mathematics carefully and find any calculation errors.`
 
 export async function POST(req: NextRequest) {
   const startTime = Date.now()
@@ -197,23 +76,39 @@ export async function POST(req: NextRequest) {
     }
     const openai = createOpenAI({ apiKey })
 
-    console.log('🔍 开始分析手写错误...')
-    console.log(`📝 文本内容: "${fullText}"`)
-    console.log(`🔢 字符数量: ${charBoxes.length}`)
+    console.log('🔍 Starting handwriting error analysis...')
+    console.log(`📝 Analysis mode: Pure visual analysis (ignoring OCR text)`)
+    console.log(`🔢 Character positions count: ${charBoxes.length}`)
 
-    // 构建用户消息
+    // 🎯 检测图像格式并记录日志
+    let imageFormat = 'unknown'
+    if (image.startsWith('data:image/png')) {
+      imageFormat = 'PNG'
+      console.log('📷 Image format: PNG detected - Perfect for OpenAI!')
+    } else if (image.startsWith('data:image/jpeg') || image.startsWith('data:image/jpg')) {
+      imageFormat = 'JPEG'
+      console.log('📷 Image format: JPEG detected - Supported by OpenAI')
+    } else if (image.startsWith('data:image/svg+xml')) {
+      imageFormat = 'SVG'
+      console.log('📷 Image format: SVG detected - Will use directly')
+    } else {
+      console.warn('⚠️ Unknown image format, proceeding anyway:', image.substring(0, 50))
+    }
+
+    // 直接使用前端生成的PNG图像，无需转换
+    const processedImage = image
+
+    // 构建用户消息 - 只传递位置信息，不传递OCR文本
     const userMessage = {
       text: JSON.stringify({
-        fullText,
-        charBoxes: charBoxes.map(char => ({
+        message: "Please analyze the handwritten mathematical content and identify any calculation errors. Use only your visual ability to analyze the image, ignoring any text recognition data.",
+        characterPositions: charBoxes.map(char => ({
           id: char.id,
-          char: char.char,
           bbox: char.bbox,
-          center: char.center,
-          confidence: char.confidence
+          center: char.center
         }))
       }),
-      image: image
+      image: processedImage
     }
 
     // 调用OpenAI进行结构化生成
@@ -236,19 +131,19 @@ export async function POST(req: NextRequest) {
         }
       ],
       schema: ErrorAnalysisSchema,
-      temperature: 0.1,
+      temperature: 0,
       maxTokens: 2048
     })
 
     // 直接使用OpenAI的响应作为错误分析结果
     const errorAnalysis = result.object as ErrorAnalysisResult
 
-    console.log('✅ OpenAI分析完成')
-    console.log(`🚨 发现错误: ${errorAnalysis.hasErrors}`)
+    console.log('✅ OpenAI analysis completed')
+    console.log(`🚨 Errors found: ${errorAnalysis.hasErrors}`)
     if (errorAnalysis.hasErrors) {
-      console.log(`📊 错误数量: ${errorAnalysis.results.length}`)
+      console.log(`📊 Error count: ${errorAnalysis.results.length}`)
       errorAnalysis.results.forEach((error, index) => {
-        console.log(`   ${index + 1}. ID:${error.id} 类型:${error.errorType} 建议:"${error.suggestion}"`)
+        console.log(`   ${index + 1}. ID:${error.id} Type:${error.errorType} Suggestion:"${error.suggestion}"`)
       })
     }
 
@@ -259,11 +154,11 @@ export async function POST(req: NextRequest) {
     })
 
   } catch (error) {
-    console.error('❌ 手写错误分析失败:', error)
+    console.error('❌ Matrix analysis failed:', error)
     
     return NextResponse.json({
       success: false,
-      error: error instanceof Error ? error.message : '未知错误',
+      error: error instanceof Error ? error.message : 'Unknown error',
       processingTime: Date.now() - startTime
     }, { status: 500 })
   }

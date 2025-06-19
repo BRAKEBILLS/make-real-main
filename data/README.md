@@ -6,8 +6,11 @@
 
 ```
 data/
-├── visualizations/  # 可视化分析图像（显示边界框和中心点）
-└── ocr-results/     # OCR识别结果JSON文件
+├── ocr-results/         # OCR识别结果JSON文件
+├── visualizations/      # 可视化分析图像（显示边界框和中心点）
+├── canvas-screenshots/  # 完整画布截图及其元数据
+├── coordinates/         # 手写区域坐标数据（c00x格式label）
+└── gpt-analysis/        # GPT错误分析结果JSON文件
 ```
 
 ## 文件命名规范
@@ -25,6 +28,25 @@ data/
   - 包含完整的字符坐标数据
   - 包含原始图像和预处理图像的base64数据
   - 包含识别文本和置信度信息
+
+#### 画布截图文件
+- 画布截图: `canvas_screenshot_{timestamp}.png`
+  - 完整画布的高分辨率截图
+  - 包含手写内容和灰色虚线矩形标记
+- 截图元数据: `canvas_screenshot_{timestamp}_metadata.json`
+  - 包含坐标信息和截图描述
+
+#### 坐标数据文件
+- 手写区域坐标: `coordinates_{timestamp}.json`
+  - 包含c00x格式的label（c001, c002, c003...）
+  - tldraw原生坐标数据（bbox和center）
+  - GPT识别匹配所需的完整信息
+
+#### GPT分析文件
+- GPT分析结果: `canvas_analysis_{timestamp}.json`
+  - 包含GPT错误识别结果
+  - 引用对应的画布截图文件
+  - 包含手写区域坐标和错误标记信息
 
 ## 数据格式
 
